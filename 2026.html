@@ -196,6 +196,9 @@ const CONFIG = {
     { key: "B2C",         name: "B2C(교육환급비)" },
     { key: "온라인/구독",  name: "온라인/구독(교육환급비)" },
   ],
+
+  // 영상실적 탭 (부서/담당자/작업유형/요청일/완료일/월/컨텐츠명) - 통합현황 집계에는 포함하지 않음
+  VIDEO_PERF_TAB: { name: "영상실적", courseCol: 6 },
 };
 
 const HAS_LIVE_CONFIG = !!CONFIG.WEB_APP_URL;
@@ -292,11 +295,41 @@ const SAMPLE_REFUND_DATA = {
   ],
 };
 
+// 영상실적 샘플 (부서·담당자·작업유형·요청일자·완료일자·해당월·컨텐츠명)
+const SAMPLE_VIDEOPERF_DATA = [
+  ["교육콘텐츠팀","윤서아","촬영","2026-01-05","2026-01-09","1","신입 온보딩 영상"],
+  ["교육콘텐츠팀","윤서아","편집","2026-01-10","2026-01-14","1","신입 온보딩 영상"],
+  ["교육콘텐츠팀","윤서아","자막/더빙","2026-01-15","2026-01-16","1","신입 온보딩 영상"],
+  ["교육콘텐츠팀","임도윤","촬영","2026-01-20","2026-01-23","1","SAC 엔지니어링 소개 영상"],
+  ["교육콘텐츠팀","임도윤","편집","2026-01-24","2026-01-29","1","SAC 엔지니어링 소개 영상"],
+  ["교육콘텐츠팀","윤서아","모션그래픽","2026-02-02","2026-02-06","2","서비스매너 애니메이션"],
+  ["교육콘텐츠팀","임도윤","촬영","2026-02-09","2026-02-11","2","제품 소개 영상 시리즈"],
+  ["교육콘텐츠팀","임도윤","편집","2026-02-12","2026-02-18","2","제품 소개 영상 시리즈"],
+  ["교육콘텐츠팀","윤서아","자막/더빙","2026-02-19","2026-02-20","2","서비스매너 애니메이션"],
+  ["교육콘텐츠팀","윤서아","촬영","2026-03-02","2026-03-05","3","VIP 고객응대 영상"],
+  ["교육콘텐츠팀","임도윤","모션그래픽","2026-03-06","2026-03-12","3","공공조달 절차 애니메이션"],
+  ["교육콘텐츠팀","윤서아","편집","2026-03-06","2026-03-11","3","VIP 고객응대 영상"],
+  ["교육콘텐츠팀","윤서아","자막/더빙","2026-03-12","2026-03-13","3","VIP 고객응대 영상"],
+  ["교육콘텐츠팀","임도윤","촬영","2026-03-20",null,"3","리테일 세일즈 영상 시리즈"],
+  ["교육콘텐츠팀","윤서아","촬영","2026-04-01","2026-04-04","4","구독서비스 안내 영상"],
+  ["교육콘텐츠팀","임도윤","편집","2026-04-05","2026-04-10","4","구독서비스 안내 영상"],
+  ["교육콘텐츠팀","윤서아","모션그래픽","2026-04-11","2026-04-15","4","라이브커머스 가이드 애니메이션"],
+  ["교육콘텐츠팀","임도윤","자막/더빙","2026-04-16",null,"4","구독서비스 안내 영상"],
+  ["교육콘텐츠팀","윤서아","촬영","2026-05-04","2026-05-07","5","화상 서비스매너 영상"],
+  ["교육콘텐츠팀","임도윤","편집","2026-05-08","2026-05-13","5","화상 서비스매너 영상"],
+  ["교육콘텐츠팀","윤서아","자막/더빙","2026-05-14","2026-05-15","5","화상 서비스매너 영상"],
+  ["교육콘텐츠팀","임도윤","모션그래픽","2026-05-18",null,"5","원격 A/S 안내 애니메이션"],
+  ["교육콘텐츠팀","윤서아","촬영","2026-06-01","2026-06-04","6","공공조달 실무 영상"],
+  ["교육콘텐츠팀","임도윤","편집","2026-06-05",null,"6","공공조달 실무 영상"],
+  ["교육콘텐츠팀","윤서아","자막/더빙","2026-06-10",null,"6","계약/견적 실무 영상"],
+];
+
 /* =========================================================================
    3) 데이터 로딩
    ========================================================================= */
 let RAW = {};        // { 탭이름: [row, ...] }
 let REFUND_RAW = {}; // { 카테고리키: [row, ...] } - 컨소시엄/B2B/B2C/온라인/구독 4개 환급비 탭
+let VIDEOPERF_RAW = []; // 영상실적 탭 (통합현황 집계에는 포함하지 않음)
 const charts = {};   // Chart.js 인스턴스 캐시 (탭 전환 시 재사용/파괴)
 
 async function fetchAllSheetsViaWebApp(){
@@ -320,6 +353,7 @@ async function loadData(){
   if(!HAS_LIVE_CONFIG){
     RAW = SAMPLE_DATA;
     REFUND_RAW = SAMPLE_REFUND_DATA;
+    VIDEOPERF_RAW = SAMPLE_VIDEOPERF_DATA;
     dot.classList.remove('err');
     text.textContent = "샘플 데이터 표시 중 (CONFIG 미설정)";
     return;
@@ -333,6 +367,7 @@ async function loadData(){
     REFUND_RAW = Object.fromEntries(
       CONFIG.REFUND_TABS.map(t => [t.key, rowsForTab(allSheets, t.name, 4)])
     );
+    VIDEOPERF_RAW = rowsForTab(allSheets, CONFIG.VIDEO_PERF_TAB.name, CONFIG.VIDEO_PERF_TAB.courseCol);
     dot.classList.remove('err');
     const now = new Date();
     text.textContent = "최종 업데이트: " + now.toISOString().slice(0,16).replace('T',' ');
@@ -340,6 +375,7 @@ async function loadData(){
     console.error(err);
     RAW = SAMPLE_DATA;
     REFUND_RAW = SAMPLE_REFUND_DATA;
+    VIDEOPERF_RAW = SAMPLE_VIDEOPERF_DATA;
     dot.classList.add('err');
     text.textContent = "연동 실패 - 샘플 데이터로 대체됨 (" + err.message + ")";
   }
@@ -677,10 +713,11 @@ function renderDonutChart(canvasId, tabNames){
 }
 
 // 교육구분(오프라인/온라인 등, E열) 기준 도넛
-function renderTypeDonut(canvasId, rows){
+function renderTypeDonut(canvasId, rows, colIndex){
+  const idx = colIndex == null ? 4 : colIndex;
   const counts = {};
   rows.forEach(r=>{
-    const type = r[4] || '기타';
+    const type = r[idx] || '기타';
     counts[type] = (counts[type]||0) + 1;
   });
   const labels = Object.keys(counts);
@@ -1009,11 +1046,123 @@ function renderRefundTab(){
   });
 }
 
+// 영상실적 전용: 부서,담당자,작업유형,요청일자,완료일자,해당월,컨텐츠명
+function aggregateVideoPerf(rows){
+  const byMonth = {};
+  for(let m=1; m<=12; m++) byMonth[m] = { count:0 };
+  const byWorkType = {};
+  let completedCount = 0;
+
+  rows.forEach(r=>{
+    const month = parseInt(r[5],10);
+    const workType = r[2] || '기타';
+    if(month && byMonth[month]){ byMonth[month].count += 1; }
+    byWorkType[workType] = (byWorkType[workType]||0) + 1;
+    if(r[4]) completedCount += 1; // 완료일자가 있으면 완료 건
+  });
+
+  const monthsUsed = Object.keys(byMonth).map(Number).filter(m => byMonth[m].count>0).sort((a,b)=>a-b);
+
+  return {
+    totalCount: rows.length,
+    completedCount,
+    inProgressCount: rows.length - completedCount,
+    byWorkType, byMonth, monthsUsed,
+  };
+}
+
+function kpiCardsHtmlVideoPerf(agg){
+  return `
+    <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);">
+      <div class="kpi"><div class="label">총 작업 건수</div><div class="value">${agg.totalCount}</div><div class="note">전체 행 수 기준</div></div>
+      <div class="kpi"><div class="label">완료 건수</div><div class="value">${agg.completedCount}</div><div class="note">완료일자 등록 기준</div></div>
+    </div>`;
+}
+
+// 작업유형별 색상 점 + 텍스트 (별도 배지 클래스 없이 동적 색상 매핑)
+function workTypeLabel(type){
+  const idx = Math.abs([...type].reduce((h,c)=>h+c.charCodeAt(0),0)) % CATEGORY_COLORS.length;
+  return `<span class="swatch" style="background:${CATEGORY_COLORS[idx]};display:inline-block;margin-right:6px;vertical-align:middle;"></span>${type}`;
+}
+
+function tableRowsHtmlVideoPerf(rows){
+  if(!rows.length){
+    return `<tr><td colspan="6" style="text-align:center;color:#aaa;padding:26px;">데이터가 없습니다</td></tr>`;
+  }
+  return rows.map(r => `
+    <tr>
+      <td>${r[0]||'-'}</td>
+      <td>${r[1]||'-'}</td>
+      <td>${workTypeLabel(r[2]||'기타')}</td>
+      <td>${r[6]||'-'}</td>
+      <td>${cleanDate(r[3])} ~ ${r[4] ? cleanDate(r[4]) : '진행중'}</td>
+      <td>${r[5]||'-'}월</td>
+    </tr>`).join('');
+}
+
+function renderVideoPerfTab(){
+  const rows = VIDEOPERF_RAW || [];
+  const agg = aggregateVideoPerf(rows);
+  const sorted = [...rows].sort((a,b)=> (parseInt(a[5])-parseInt(b[5])) || cleanDate(a[3]).localeCompare(cleanDate(b[3])) );
+  const monthsPresent = [...new Set(sorted.map(r=>parseInt(r[5],10)).filter(Boolean))].sort((a,b)=>a-b);
+
+  document.getElementById('app').innerHTML = `
+    <div class="section-head"><div class="bar"></div><div><h2>영상실적</h2><p>'영상실적' 탭 기준 작업 현황입니다. (통합현황 집계에는 포함되지 않습니다)</p></div></div>
+    ${!rows.length ? `<div class="empty-hint show">영상실적 데이터가 없습니다. CONFIG.VIDEO_PERF_TAB.name이 실제 시트 탭 이름과 일치하는지 확인해주세요.</div>` : ''}
+    ${kpiCardsHtmlVideoPerf(agg)}
+    <div class="grid-2">
+      <div class="panel">
+        <h3>월별 작업 건수</h3>
+        <div class="legend-line">막대: 작업 건수</div>
+        <div class="chart-wrap"><canvas id="vpMonthly"></canvas></div>
+      </div>
+      <div class="panel">
+        <h3>작업유형별 현황</h3>
+        <div class="legend-line">작업유형 기준 건수 비중</div>
+        <div class="chart-wrap donut"><canvas id="vpDonut"></canvas></div>
+        <div class="donut-legend" id="vpDonut_legend"></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:16px;">
+      <h3>작업 상세 내역</h3>
+      <div class="legend-line">부서 · 담당자 · 작업유형 · 컨텐츠명 · 기간 · 월</div>
+      <div class="month-filter" id="vpMonthFilter">
+        <button class="filter-pill active" data-month="all">전체</button>
+        ${monthsPresent.map(m=>`<button class="filter-pill" data-month="${m}">${m}월</button>`).join('')}
+      </div>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead><tr><th>부서</th><th>담당자</th><th>작업유형</th><th>컨텐츠명</th><th>기간</th><th>월</th></tr></thead>
+          <tbody id="vpTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  renderMonthlyChartSimple('vpMonthly', agg, true);
+  renderTypeDonut('vpDonut', rows, 2);
+
+  function updateTable(monthFilter){
+    const filtered = monthFilter === 'all' ? sorted : sorted.filter(r => parseInt(r[5],10) === Number(monthFilter));
+    document.getElementById('vpTableBody').innerHTML = tableRowsHtmlVideoPerf(filtered);
+  }
+  updateTable('all');
+
+  document.querySelectorAll('#vpMonthFilter .filter-pill').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('#vpMonthFilter .filter-pill').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      updateTable(btn.dataset.month);
+    });
+  });
+}
+
 function buildTabNav(){
   const nav = document.getElementById('tabNav');
   const items = [
     { key:'__overview__', label:'통합 현황' },
     ...CONFIG.SHEET_TABS.map(t=>({key:t.name, label:t.name})),
+    { key:'__videoperf__', label: '영상실적' },
     { key:'__refund__', label: '교육환급비' },
   ];
   nav.innerHTML = items.map(it => `<button class="tab-btn" data-key="${it.key}"><span class="dotm"></span>${it.label}</button>`).join('');
@@ -1029,6 +1178,8 @@ function activateTab(key){
     renderOverviewTab();
   }else if(key === '__refund__'){
     renderRefundTab();
+  }else if(key === '__videoperf__'){
+    renderVideoPerfTab();
   }else{
     const conf = CONFIG.SHEET_TABS.find(t=>t.name===key);
     if(conf && conf.schema === 'video'){ renderVideoCategoryTab(conf); }
